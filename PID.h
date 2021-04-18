@@ -2,20 +2,23 @@
 #define PID_H
 
 /*
+   Arduino:
    PWM frequency ~980Hz ~1ms
    analogWrite(0); //0% duty cycle
    analogWrite(255); //100% duty cycle
 */
 
 /*
-   u(n) = u(n-1) + K_p*{e(n)-e(n-1)} + K_i*T_s*e(n) + K_d/T_s*{e(n)-2e(n-1)+e(n-2)}
-   T_s = Sampling time of the Analog to Digital (A/D)
+   (1: first) u(n) = u(n-1) + Kp*{e(n)-e(n-1)} + Ti*Ts*e(n) + Td/Ts*{e(n)-2e(n-1)+e(n-2)}
+   (1: second) w(n) = w(n-1) + e(n) , u(n) = Kp{e(n) + Ts/Ti*{w(n)} + Td/Ts*{e(n)-e(n-1)}}
+   w(n) = sum of errors
+   Ts = Sampling time of the Analog to Digital (A/D)
    u(n) = Discrete time PID controller output
    e(n) = r(n)-y(n) = Error signal
    r(n) = reference signal
    y(n) = Measured output of process
    n = Discrete interval of time is an integer
-   K_p,K_i,K_d = Proportional, Integral, Derivative gain constants respectively.
+   Kp, Ti, Td = Proportional, Integral, Derivative gain constants respectively.
 */
 
 template<typename U, typename R, typename Y> //U=Discrete PID output, R=Reference, Y=Measured output of process
@@ -23,28 +26,33 @@ class PID
 {
   private:
     float Kp; //Proportional parameter
-    float Ki; //Integral parameter
-    float Kd; //Derivative parameter
+    float Ti; //Integral parameter
+    float Td; //Derivative parameter
     float Ts; //Samplingtime
-    float KiTs; //Ki*Ts
-    float KdTs; //Kd/Ts
-    double err = 0; //Optional variable for error sum. err = e[n - 1] + (r(n) - y(n));
-    float e[3] = {0, 0, 0}; //Error = reference - measured output of process => e = r - y
+    float TiTs; //Ti*Ts
+    float TdTs; //Td/Ts
+    float TsTi; //Ts/Ti
+    float ef[3] = {0, 0, 0}; //First Error = reference - measured output of process => e = r - y
+    double w[2] = {0, 0}; //Sum of errors
+    float es[2] = {0, 0}; //Second Error = reference - measured output of process => e = r - y
     U u; //Discrete PID output
 
   public:
-    PID(float& _Kp, float& _Ki, float& _Kd, float& _Ts);
+    PID(float& _Kp, float& _Ti, float& _Td, float& _Ts);
     ~PID();
-    U get(R& _r, Y& _y);
-    //U get(R _r, Y _y); //Use this if pass by value
+    U firstRefGet(R& _r, Y& _y);
+    U firstValGet(R _r, Y _y);
+    U secondRefGet(R& _r, Y& _y);
+    U SecondValGet(R _r, Y _y);
 };
 
 template<typename U, typename R, typename Y>
-PID<U, R, Y>::PID(float& _Kp, float& _Ki, float& _Kd, float& _Ts)
-  : Kp(_Kp), Ki(_Ki), Kd(_Kd), Ts(_Ts)
+PID<U, R, Y>::PID(float& _Kp, float& _Ti, float& _Td, float& _Ts)
+  : Kp(_Kp), Ti(_Ti), Td(_Td), Ts(_Ts)
 {
-  KiTs = Ki * Ts;
-  KdTs = Kd / Ts;
+  TiTs = Ti * Ts;
+  TdTs = Td / Ts;
+  TsTi = Ts / Ti;
 }
 
 template<typename U, typename R, typename Y>
@@ -53,22 +61,41 @@ PID<U, R, Y>::~PID()
 }
 
 template<typename U, typename R, typename Y>
-U PID<U, R, Y>::get(R& _r, Y& _y) {
-  e[2] = e[1];
-  e[1] = e[0];
-  e[0] = _r - _y;
-  //err = e[1] + (_r - _y); //When used, replace it with e[0] that is multipied with KiTs.
-  u = u + Kp * (e[0] - e[1]) + KiTs * e[0] + KdTs * (e[0] - 2 * e[1] + e[2]);
+U PID<U, R, Y>::firstRefGet(R& _r, Y& _y) {
+  ef[2] = ef[1];
+  ef[1] = ef[0];
+  ef[0] = _r - _y;
+  u = u + Kp * (ef[0] - ef[1]) + TiTs * ef[0] + TdTs * (ef[0] - 2 * ef[1] + ef[2]);
   return u;
 }
 
-//template<typename U, typename R, typename Y>
-//U PID<U, R, Y>::get(R _r, Y _y) { //Pass by value function.
-//  e[2] = e[1];
-//  e[1] = e[0];
-//  e[0] = _r - _y;
-//  u = u + Kp * (e[0] - e[1]) + KiTs * e[0] + KdTs * (e[0] - 2 * e[1] + e[2]);
-//  return u;
-//}
+template<typename U, typename R, typename Y>
+U PID<U, R, Y>::firstValGet(R _r, Y _y) {
+  ef[2] = ef[1];
+  ef[1] = ef[0];
+  ef[0] = _r - _y;
+  u = u + Kp * (ef[0] - ef[1]) + TiTs * ef[0] + TdTs * (ef[0] - 2 * ef[1] + ef[2]);
+  return u;
+}
+
+template<typename U, typename R, typename Y>
+U PID<U, R, Y>::secondRefGet(R& _r, Y& _y) {
+  es[1] = es[0];
+  es[0] = _r - _y;
+  w[1] = w[0];
+  w[0] = w[1] + es[0];
+  u = Kp * (es[0] + TsTi*es[0] + TdTs*(es[0] - es[1]));
+  return u;
+}
+
+template<typename U, typename R, typename Y>
+U PID<U, R, Y>::SecondValGet(R _r, Y _y) {
+  es[1] = es[0];
+  es[0] = _r - _y;
+  w[1] = w[0];
+  w[0] = w[1] + es[0];
+  u = Kp * (es[0] + TsTi*es[0] + TdTs*(es[0] - es[1]));
+  return u;
+}
 
 #endif
