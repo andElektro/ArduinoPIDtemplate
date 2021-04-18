@@ -18,8 +18,5 @@ T0 = Priod of K0.
 
 Karl Johan Åström and Tore Hägglund parameters:
 
-K = 0.35*K0
+PID regulator: K = 0.35*K0 , Ti = 0.77*T0 , Td = 0.19*T0
 
-Ti = 0.77*T0
-
-Td = 0.19*T0
