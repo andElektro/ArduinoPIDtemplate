@@ -28,7 +28,7 @@ class PID
     float Ts; //Samplingtime
     float KiTs; //Ki*Ts
     float KdTs; //Kd/Ts
-    double err = 0; //Optional variable for error sum.
+    double err = 0; //Optional variable for error sum. err = e[n - 1] + (r(n) - y(n));
     float e[3] = {0, 0, 0}; //Error = reference - measured output of process => e = r - y
     U u; //Discrete PID output
 
@@ -70,9 +70,5 @@ U PID<U, R, Y>::get(R& _r, Y& _y) {
 //  u = u + Kp * (e[0] - e[1]) + KiTs * e[0] + KdTs * (e[0] - 2 * e[1] + e[2]);
 //  return u;
 //}
-
-
-
-
 
 #endif
