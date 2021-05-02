@@ -10,7 +10,7 @@
 
 /*
    (1: first) u(n) = u(n-1) + Kp*{e(n)-e(n-1)} + Ti*Ts*e(n) + Td/Ts*{e(n)-2e(n-1)+e(n-2)}
-   (1: second) w(n) = w(n-1) + e(n) , u(n) = Kp{e(n) + Ts/Ti*{w(n)} + Td/Ts*{e(n)-e(n-1)}}
+   (2: second) w(n) = w(n-1) + e(n) , u(n) = Kp{e(n) + Ts/Ti*{w(n)} + Td/Ts*{e(n)-e(n-1)}}
    w(n) = sum of errors
    Ts = Sampling time of the Analog to Digital (A/D)
    u(n) = Discrete time PID controller output
